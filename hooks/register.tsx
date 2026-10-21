@@ -275,7 +275,9 @@ export const register: Register = (on, options) => {
                   plain
                   dimColor
                   label={`${' '.repeat(entry.level - minLevel)}${entry.title}`}
-                  onPress={() => void $.ui.scroll({ in: PANE, to: { key: entry.anchor }, block: 'start' })}
+                  onPress={() =>
+                    void $.ui.scroll({ in: PANE, to: { key: entry.anchor }, block: 'start' }).catch(() => undefined)
+                  }
                 />
               ))}
           </Box>

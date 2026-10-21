@@ -1,6 +1,6 @@
 {
   "name": "md-mermaid-pane",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A pane that shows a Markdown file with its mermaid blocks drawn as diagrams, redrawn when the file changes",
   "types": "./types/index.d.ts",
   "author": {

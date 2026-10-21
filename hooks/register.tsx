@@ -17,8 +17,16 @@ const MERMAID_CLI = '@mermaid-js/mermaid-cli@12.0.0'
 let binaries = { node: 'node', npm: 'npm', chrome: '' }
 let depsCache: string | null = null
 
-const depsDir = async ($: EngineInterface) =>
-  (depsCache ??= `${(await $.env.get('HOME')) ?? '/tmp'}/.local/share/md-mermaid-pane`)
+// HOME on macOS / Linux, USERPROFILE on Windows; no shell command is needed to make the folder ($.fs.write and
+// npm --prefix create it).
+const depsDir = async ($: EngineInterface) => {
+  if (depsCache) return depsCache
+  const home = (await $.env.get('HOME')) || (await $.env.get('USERPROFILE')) || '.'
+  depsCache = `${home.replace(/\\/g, '/')}/.local/share/md-mermaid-pane`
+  return depsCache
+}
+
+const isWindows = async ($: EngineInterface) => (await $.env.get('OS')) === 'Windows_NT'
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
 
 const pathAtom = atom({ plugin: 'md-mermaid-pane', key: 'path' } as const, null as DocPath)
@@ -123,11 +131,13 @@ const openFullScreen = async ($: EngineInterface, svg: string, index: number) =>
   const viewDir = `${await depsDir($)}/view`
   const file = `${viewDir}/${name}.html`
   try {
-    await $.process.run(['mkdir', '-p', viewDir])
     await $.fs.write(file, viewerHtml(`${basename(docPath)} — sơ đồ ${index + 1}`, svg))
-    // macOS has `open`, Linux desktops `xdg-open`.
-    const opened = await $.process.run(['open', file]).catch(() => null)
-    if (!opened || opened.exitCode !== 0) await $.process.run(['xdg-open', file])
+    // Windows opens a file through `start`; macOS has `open`, Linux desktops `xdg-open`.
+    if (await isWindows($)) await $.process.run(['cmd', '/c', 'start', '', file])
+    else {
+      const opened = await $.process.run(['open', file]).catch(() => null)
+      if (!opened || opened.exitCode !== 0) await $.process.run(['xdg-open', file])
+    }
   } catch (error) {
     status = `Không mở được toàn màn hình: ${String(error).slice(0, 200)}`
     await redraw($)
@@ -156,15 +166,16 @@ const openFile = async ($: EngineInterface, raw: string): Promise<string> => {
 // One-time install of the renderer's libraries for this person; the browser is the one already installed.
 const setup = async ($: EngineInterface): Promise<string> => {
   const deps = await depsDir($)
-  await $.process.run(['mkdir', '-p', deps])
+  // Without a shell, Windows finds npm only by its .cmd name.
+  const npm = binaries.npm === 'npm' && (await isWindows($)) ? 'npm.cmd' : binaries.npm
   const ran = await $.process
-    .run([binaries.npm, 'install', '--prefix', deps, '--no-fund', '--no-audit', MERMAID_CLI], {
+    .run([npm, 'install', '--prefix', deps, '--no-fund', '--no-audit', MERMAID_CLI], {
       env: { PUPPETEER_SKIP_DOWNLOAD: '1' },
       timeoutMs: 600000,
     })
     .catch(error => ({ exitCode: 127, stdout: '', stderr: String(error) }))
   if (ran.exitCode !== 0) {
-    return `Cài trình vẽ lỗi (${binaries.npm}): ${ran.stderr.trim().split('\n').slice(-3).join(' ')}`
+    return `Cài trình vẽ lỗi (${npm}): ${ran.stderr.trim().split('\n').slice(-3).join(' ')}`
   }
   diagrams.clear()
   status = ''
@@ -196,9 +207,18 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  on('command.run', { command: 'md-view' }, async ($, e) => ({ text: await openFile($, e.args) }))
+  // A failure must still answer the command, so the person sees the reason instead of a silent no-op.
+  const answered = async (work: () => Promise<string>) => {
+    try {
+      return { text: await work() }
+    } catch (error) {
+      return { text: `Lỗi: ${String(error).slice(0, 400)}` }
+    }
+  }
 
-  on('command.run', { command: 'md-view-setup' }, async $ => ({ text: await setup($) }))
+  on('command.run', { command: 'md-view' }, async ($, e) => answered(() => openFile($, e.args)))
+
+  on('command.run', { command: 'md-view-setup' }, async $ => answered(() => setup($)))
 
   on('ui.close', { id: PANE }, async ($, e, next) => {
     await update($, pathAtom, () => null)

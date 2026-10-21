@@ -1,0 +1,29 @@
+{
+  "name": "md-mermaid-pane",
+  "version": "0.2.0",
+  "description": "A pane that shows a Markdown file with its mermaid blocks drawn as diagrams, redrawn when the file changes",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "boykioyb"
+  },
+  "userConfig": {
+    "nodePath": {
+      "type": "string",
+      "title": "Node",
+      "description": "The node that runs the mermaid renderer. Leave 'node' when node is on PATH; else its full path (which node).",
+      "default": "node"
+    },
+    "npmPath": {
+      "type": "string",
+      "title": "npm",
+      "description": "The npm /md-view-setup installs the renderer with. Leave 'npm' when it is on PATH; else its full path.",
+      "default": "npm"
+    },
+    "chromePath": {
+      "type": "string",
+      "title": "Chrome / Chromium / Edge",
+      "description": "The browser the renderer drives. Empty finds Chrome, Chromium or Edge in their usual install places.",
+      "default": ""
+    }
+  }
+}

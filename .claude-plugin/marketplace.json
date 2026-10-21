@@ -1,0 +1,14 @@
+{
+  "name": "claude-code-markdown-mod",
+  "description": "Markdown + Mermaid viewer panel for Claude Code",
+  "owner": {
+    "name": "boykioyb"
+  },
+  "plugins": [
+    {
+      "name": "md-mermaid-pane",
+      "source": "./",
+      "description": "Pane that shows a Markdown file with its mermaid blocks drawn as diagrams, with a table of contents, zoom and full screen"
+    }
+  ]
+}
